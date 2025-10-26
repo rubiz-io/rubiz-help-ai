@@ -1,0 +1,35 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: rubiz-help-ai-stripprefix
+  namespace: rubiz
+spec:
+  stripPrefix:
+    prefixes:
+      - /help-ai
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: rubiz-help-ai-ingress
+  namespace: rubiz
+  labels:
+    app: rubiz-help-ai
+    brand: rubiz
+    environment: uat
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`uat-home.rubizvpn.com`,`uat-api-home.rubizvpn.com`, `uat-web-home.rubizvpn.com`) && PathPrefix(`/help-ai`)
+      priority: 300
+      middlewares:
+        - name: default-rubiz-redirect-https@kubernetescrd
+        - name: rubiz-help-ai-stripprefix
+      services:
+        - name: rubiz-help-ai
+          namespace: rubiz
+          port: 80

@@ -1,0 +1,277 @@
+name: Deploy Rubiz Help AI
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+      - 'hotfix/**'
+
+env:
+  BRAND: rubiz
+  NAMESPACE: rubiz
+  # Uses flash-help-ai Docker image - no brand-specific build needed
+  DOCKER_IMAGE: gcr.io/flashvpn-253908/flash-help-ai:latest
+
+jobs:
+  # Determine deployment environment
+  determine-deployment:
+    name: Determine Deployment Strategy
+    runs-on: ubuntu-latest
+    outputs:
+      should-deploy: ${{ steps.deployment-logic.outputs.should-deploy }}
+      environment: ${{ steps.deployment-logic.outputs.environment }}
+      require-approval: ${{ steps.deployment-logic.outputs.require-approval }}
+    steps:
+      - name: Determine deployment logic
+        id: deployment-logic
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+
+          case "$BRANCH_NAME" in
+            "main")
+              echo "should-deploy=true" >> $GITHUB_OUTPUT
+              echo "environment=production" >> $GITHUB_OUTPUT
+              echo "require-approval=true" >> $GITHUB_OUTPUT
+              ;;
+            release/*|hotfix/*)
+              echo "should-deploy=true" >> $GITHUB_OUTPUT
+              echo "environment=uat" >> $GITHUB_OUTPUT
+              echo "require-approval=false" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "should-deploy=false" >> $GITHUB_OUTPUT
+              echo "environment=none" >> $GITHUB_OUTPUT
+              echo "require-approval=false" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+  # Production Deployment Approval Gate
+  production-approval:
+    name: Production Deployment Approval
+    runs-on: ubuntu-latest
+    needs: [determine-deployment]
+    if: needs.determine-deployment.outputs.require-approval == 'true'
+    environment:
+      name: production
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Request deployment approval
+        run: |
+          echo "🚀 Production deployment requested for Rubiz Help AI:"
+          echo "• Branch: ${{ github.ref_name }}"
+          echo "• Commit: ${{ github.sha }}"
+          echo "• Image: ${{ env.DOCKER_IMAGE }}"
+          echo "• Namespace: ${{ env.NAMESPACE }}"
+
+  # Deploy to Kubernetes
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: [determine-deployment, production-approval]
+    if: |
+      always() &&
+      needs.determine-deployment.outputs.should-deploy == 'true' &&
+      (needs.determine-deployment.outputs.require-approval == 'false' || needs.production-approval.result == 'success')
+    environment:
+      name: ${{ needs.determine-deployment.outputs.environment }}
+      url: https://${{ needs.determine-deployment.outputs.environment == 'production' && 'home' || 'uat-home' }}.rubizvpn.com/help-ai/health
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl for DigitalOcean
+        run: |
+          # List available clusters for debugging
+          echo "Available DigitalOcean clusters:"
+          doctl kubernetes cluster list || echo "Could not list clusters"
+
+          # Get the cluster ID/name based on environment
+          if [[ "${{ needs.determine-deployment.outputs.environment }}" == "production" ]]; then
+            CLUSTER_NAME="${{ secrets.DO_CLUSTER_NAME_PROD || 'prod-jss' }}"
+          else
+            CLUSTER_NAME="${{ secrets.DO_CLUSTER_NAME_UAT || 'uat-jss' }}"
+          fi
+
+          echo "Configuring kubectl for cluster: $CLUSTER_NAME"
+
+          # Generate kubeconfig using doctl
+          doctl kubernetes cluster kubeconfig save "$CLUSTER_NAME" --expiry-seconds 600
+
+          # Verify the configuration
+          echo "Verifying cluster connectivity..."
+          kubectl cluster-info
+
+          # Set the namespace
+          kubectl config set-context --current --namespace=${{ env.NAMESPACE }}
+
+          echo "Current context:"
+          kubectl config current-context
+
+          echo "Available namespaces:"
+          kubectl get namespaces | grep -E "^(${{ env.NAMESPACE }}|default)" || true
+
+      - name: Verify cluster connectivity
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create or update secrets
+        run: |
+          # Create environment-specific secrets for Rubiz namespace
+          kubectl create secret generic ${{ env.BRAND }}-help-ai-secrets \
+            --from-literal=NODE_ENV="${{ needs.determine-deployment.outputs.environment }}" \
+            --from-literal=PORT="3000" \
+            --from-literal=REDIS_HOST="redis.default.svc.cluster.local" \
+            --from-literal=REDIS_PORT="6379" \
+            --from-literal=CHROMA_HOST="chromadb.default.svc.cluster.local" \
+            --from-literal=CHROMA_PORT="8000" \
+            --from-literal=CHROMA_COLLECTION="${{ env.BRAND }}-help" \
+            --from-literal=HELP_DOMAIN="${{ secrets.RUBIZ_HELP_DOMAIN || 'guides.rubizvpn.com' }}" \
+            --from-literal=NOTION_TOKEN="${{ secrets.RUBIZ_NOTION_TOKEN }}" \
+            --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+            --from-literal=NOTION_DATABASE_ID="${{ secrets.RUBIZ_NOTION_DATABASE_ID }}" \
+            --from-literal=CHATWOOT_API_ACCESS_TOKEN="${{ secrets.RUBIZ_CHATWOOT_API_ACCESS_TOKEN }}" \
+            --from-literal=NOTION_WEBHOOK_SECRET="${{ secrets.RUBIZ_NOTION_WEBHOOK_SECRET || '' }}" \
+            --from-literal=CHATWOOT_ACCOUNT_ID="${{ secrets.RUBIZ_CHATWOOT_ACCOUNT_ID || '' }}" \
+            --from-literal=CHATWOOT_INBOX_ID="${{ secrets.RUBIZ_CHATWOOT_INBOX_ID || '' }}" \
+            --from-literal=CHATWOOT_API_BASE_URL="${{ secrets.RUBIZ_CHATWOOT_API_BASE_URL || '' }}" \
+            --from-literal=CHATWOOT_WEBHOOK_SECRET="${{ secrets.RUBIZ_CHATWOOT_WEBHOOK_SECRET || '' }}" \
+            --from-literal=LOG_LEVEL="${{ secrets.LOG_LEVEL || 'info' }}" \
+            --from-literal=MAX_RETRIES="${{ secrets.MAX_RETRIES || '3' }}" \
+            --from-literal=TIMEOUT_MS="${{ secrets.TIMEOUT_MS || '30000' }}" \
+            --from-literal=RATE_LIMIT_MAX="${{ secrets.RATE_LIMIT_MAX || '100' }}" \
+            --from-literal=RATE_LIMIT_WINDOW_MS="${{ secrets.RATE_LIMIT_WINDOW_MS || '60000' }}" \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to Rubiz namespace
+        run: |
+          # Deploy all resources to the Rubiz namespace
+          echo "Deploying to ${{ needs.determine-deployment.outputs.environment }} environment..."
+          kubectl apply -f k8s/${{ needs.determine-deployment.outputs.environment }}/ --namespace=${{ env.NAMESPACE }}
+
+          # Verify IngressRoute was created
+          echo ""
+          echo "Verifying IngressRoute configuration..."
+          kubectl get ingressroute ${{ env.BRAND }}-help-ai-ingress --namespace=${{ env.NAMESPACE }} || echo "⚠️ IngressRoute not found"
+          kubectl get middleware ${{ env.BRAND }}-help-ai-stripprefix --namespace=${{ env.NAMESPACE }} || echo "⚠️ Middleware not found"
+
+      - name: Wait for deployment rollout
+        run: |
+          # Check deployment status with timeout
+          if ! kubectl rollout status deployment/${{ env.BRAND }}-help-ai --namespace=${{ env.NAMESPACE }} --timeout=300s; then
+            echo "Deployment rollout failed or timed out. Checking pod status..."
+            kubectl get pods --namespace=${{ env.NAMESPACE }} -l app=${{ env.BRAND }}-help-ai
+            echo ""
+            echo "Pod descriptions:"
+            kubectl describe pods --namespace=${{ env.NAMESPACE }} -l app=${{ env.BRAND }}-help-ai
+            echo ""
+            echo "Pod logs (if any):"
+            kubectl logs --namespace=${{ env.NAMESPACE }} -l app=${{ env.BRAND }}-help-ai --tail=50 || echo "No logs available"
+            exit 1
+          fi
+
+      - name: Verify deployment health
+        run: |
+          kubectl get pods --namespace=${{ env.NAMESPACE }} -l app=${{ env.BRAND }}-help-ai
+          kubectl get services --namespace=${{ env.NAMESPACE }} -l app=${{ env.BRAND }}-help-ai
+
+          # Wait for pods to be ready
+          kubectl wait --for=condition=ready pod -l app=${{ env.BRAND }}-help-ai --namespace=${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          # Get service endpoint
+          SERVICE_IP=$(kubectl get service ${{ env.BRAND }}-help-ai --namespace=${{ env.NAMESPACE }} -o jsonpath='{.spec.clusterIP}')
+
+          # Basic internal health check
+          echo "Testing internal service endpoint..."
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never --namespace=${{ env.NAMESPACE }} -- \
+            curl -f http://$SERVICE_IP:3000/health || echo "⚠️ Internal health check endpoint not available"
+
+          # Test public endpoint via IngressRoute
+          echo ""
+          echo "Testing public endpoint via IngressRoute..."
+          if [[ "${{ needs.determine-deployment.outputs.environment }}" == "production" ]]; then
+            PUBLIC_URL="https://home.rubizvpn.com/help-ai/health"
+          else
+            PUBLIC_URL="https://uat-home.rubizvpn.com/help-ai/health"
+          fi
+
+          echo "Testing: $PUBLIC_URL"
+          sleep 5  # Wait for Traefik to pick up the new IngressRoute
+
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$PUBLIC_URL" || echo "000")
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Public endpoint is accessible (HTTP $RESPONSE)"
+          else
+            echo "⚠️ Public endpoint returned HTTP $RESPONSE"
+            echo "This may be expected if IngressRoute takes time to propagate"
+          fi
+
+  # Rollback capability
+  rollback:
+    name: Emergency Rollback
+    runs-on: ubuntu-latest
+    if: failure() && github.ref == 'refs/heads/main'
+    needs: [deploy]
+    environment:
+      name: production-rollback
+    steps:
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl for DigitalOcean
+        run: |
+          # For rollback, we're always in production
+          CLUSTER_NAME="${{ secrets.DO_CLUSTER_NAME_PROD || 'prod-jss' }}"
+
+          echo "Configuring kubectl for cluster: $CLUSTER_NAME"
+
+          # Generate kubeconfig using doctl
+          doctl kubernetes cluster kubeconfig save "$CLUSTER_NAME" --expiry-seconds 600
+
+          # Set the namespace
+          kubectl config set-context --current --namespace=${{ env.NAMESPACE }}
+
+      - name: Rollback deployment
+        run: |
+          echo "Rolling back deployment in ${{ env.NAMESPACE }} namespace"
+          kubectl rollout undo deployment/${{ env.BRAND }}-help-ai --namespace=${{ env.NAMESPACE }}
+          kubectl rollout status deployment/${{ env.BRAND }}-help-ai --namespace=${{ env.NAMESPACE }} --timeout=300s
+
+  # Notification
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy, determine-deployment]
+    if: always() && needs.determine-deployment.outputs.should-deploy == 'true'
+    steps:
+      - name: Notify deployment status
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ needs.deploy.result }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+        if: env.SLACK_WEBHOOK_URL != ''
