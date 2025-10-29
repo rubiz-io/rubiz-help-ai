@@ -155,6 +155,25 @@ jobs:
             --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Create or update variables ConfigMap
+        run: |
+          # Create environment-specific variables ConfigMap for Rubiz namespace
+          # Uses GitHub Variables (non-sensitive configuration)
+          kubectl create configmap ${{ env.BRAND }}-help-ai-varibles \
+            --from-literal=HELP_DOMAIN="${{ vars.RUBIZ_HELP_DOMAIN || 'guides.rubizvpn.com' }}" \
+            --from-literal=CHROMA_COLLECTION="${{ vars.RUBIZ_CHROMA_COLLECTION || 'rubiz-help' }}" \
+            --from-literal=REDIS_HOST="${{ vars.REDIS_HOST || 'redis.default.svc.cluster.local' }}" \
+            --from-literal=REDIS_PORT="${{ vars.REDIS_PORT || '6379' }}" \
+            --from-literal=CHROMA_HOST="${{ vars.CHROMA_HOST || 'chromadb.default.svc.cluster.local' }}" \
+            --from-literal=CHROMA_PORT="${{ vars.CHROMA_PORT || '8000' }}" \
+            --from-literal=LOG_LEVEL="${{ vars.LOG_LEVEL || 'info' }}" \
+            --from-literal=MAX_RETRIES="${{ vars.MAX_RETRIES || '3' }}" \
+            --from-literal=TIMEOUT_MS="${{ vars.TIMEOUT_MS || '30000' }}" \
+            --from-literal=RATE_LIMIT_MAX="${{ vars.RATE_LIMIT_MAX || '100' }}" \
+            --from-literal=RATE_LIMIT_WINDOW_MS="${{ vars.RATE_LIMIT_WINDOW_MS || '60000' }}" \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy to Rubiz namespace
         run: |
           # Deploy all resources to the Rubiz namespace

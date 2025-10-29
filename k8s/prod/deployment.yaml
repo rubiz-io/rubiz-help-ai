@@ -39,6 +39,8 @@ spec:
           envFrom:
             - secretRef:
                 name: rubiz-help-ai-secrets
+            - configMapRef:
+                name: rubiz-help-ai-varibles
           resources:
             requests:
               memory: "512Mi"
