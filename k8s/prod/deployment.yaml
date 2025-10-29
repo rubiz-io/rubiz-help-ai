@@ -36,11 +36,36 @@ spec:
             - containerPort: 3000
               name: http
               protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: HELP_DOMAIN
+              value: "guides.rubizvpn.com"
+            - name: CHROMA_COLLECTION
+              value: "rubiz-help"
+            - name: REDIS_HOST
+              value: "redis.default.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: CHROMA_HOST
+              value: "chromadb.default.svc.cluster.local"
+            - name: CHROMA_PORT
+              value: "8000"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: MAX_RETRIES
+              value: "3"
+            - name: TIMEOUT_MS
+              value: "30000"
+            - name: RATE_LIMIT_MAX
+              value: "100"
+            - name: RATE_LIMIT_WINDOW_MS
+              value: "60000"
           envFrom:
             - secretRef:
                 name: rubiz-help-ai-secrets
-            - configMapRef:
-                name: rubiz-help-ai-varibles
           resources:
             requests:
               memory: "512Mi"

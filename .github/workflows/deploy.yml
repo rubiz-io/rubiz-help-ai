@@ -128,49 +128,18 @@ jobs:
 
       - name: Create or update secrets
         run: |
-          # Create environment-specific secrets for Rubiz namespace
+          # Create secrets for sensitive data only
+          # Non-sensitive config is embedded directly in deployment.yaml
           kubectl create secret generic ${{ env.BRAND }}-help-ai-secrets \
-            --from-literal=NODE_ENV="${{ needs.determine-deployment.outputs.environment }}" \
-            --from-literal=PORT="3000" \
-            --from-literal=REDIS_HOST="redis.default.svc.cluster.local" \
-            --from-literal=REDIS_PORT="6379" \
-            --from-literal=CHROMA_HOST="chromadb.default.svc.cluster.local" \
-            --from-literal=CHROMA_PORT="8000" \
-            --from-literal=CHROMA_COLLECTION="${{ env.BRAND }}-help" \
-            --from-literal=HELP_DOMAIN="${{ secrets.RUBIZ_HELP_DOMAIN || 'guides.rubizvpn.com' }}" \
             --from-literal=NOTION_TOKEN="${{ secrets.RUBIZ_NOTION_TOKEN }}" \
             --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
             --from-literal=NOTION_DATABASE_ID="${{ secrets.RUBIZ_NOTION_DATABASE_ID }}" \
-            --from-literal=CHATWOOT_API_ACCESS_TOKEN="${{ secrets.RUBIZ_CHATWOOT_API_ACCESS_TOKEN }}" \
+            --from-literal=CHATWOOT_API_ACCESS_TOKEN="${{ secrets.RUBIZ_CHATWOOT_API_ACCESS_TOKEN || '' }}" \
             --from-literal=NOTION_WEBHOOK_SECRET="${{ secrets.RUBIZ_NOTION_WEBHOOK_SECRET || '' }}" \
             --from-literal=CHATWOOT_ACCOUNT_ID="${{ secrets.RUBIZ_CHATWOOT_ACCOUNT_ID || '' }}" \
             --from-literal=CHATWOOT_INBOX_ID="${{ secrets.RUBIZ_CHATWOOT_INBOX_ID || '' }}" \
             --from-literal=CHATWOOT_API_BASE_URL="${{ secrets.RUBIZ_CHATWOOT_API_BASE_URL || '' }}" \
             --from-literal=CHATWOOT_WEBHOOK_SECRET="${{ secrets.RUBIZ_CHATWOOT_WEBHOOK_SECRET || '' }}" \
-            --from-literal=LOG_LEVEL="${{ secrets.LOG_LEVEL || 'info' }}" \
-            --from-literal=MAX_RETRIES="${{ secrets.MAX_RETRIES || '3' }}" \
-            --from-literal=TIMEOUT_MS="${{ secrets.TIMEOUT_MS || '30000' }}" \
-            --from-literal=RATE_LIMIT_MAX="${{ secrets.RATE_LIMIT_MAX || '100' }}" \
-            --from-literal=RATE_LIMIT_WINDOW_MS="${{ secrets.RATE_LIMIT_WINDOW_MS || '60000' }}" \
-            --namespace=${{ env.NAMESPACE }} \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Create or update variables ConfigMap
-        run: |
-          # Create environment-specific variables ConfigMap for Rubiz namespace
-          # Uses GitHub Variables (non-sensitive configuration)
-          kubectl create configmap ${{ env.BRAND }}-help-ai-varibles \
-            --from-literal=HELP_DOMAIN="${{ vars.RUBIZ_HELP_DOMAIN || 'guides.rubizvpn.com' }}" \
-            --from-literal=CHROMA_COLLECTION="${{ vars.RUBIZ_CHROMA_COLLECTION || 'rubiz-help' }}" \
-            --from-literal=REDIS_HOST="${{ vars.REDIS_HOST || 'redis.default.svc.cluster.local' }}" \
-            --from-literal=REDIS_PORT="${{ vars.REDIS_PORT || '6379' }}" \
-            --from-literal=CHROMA_HOST="${{ vars.CHROMA_HOST || 'chromadb.default.svc.cluster.local' }}" \
-            --from-literal=CHROMA_PORT="${{ vars.CHROMA_PORT || '8000' }}" \
-            --from-literal=LOG_LEVEL="${{ vars.LOG_LEVEL || 'info' }}" \
-            --from-literal=MAX_RETRIES="${{ vars.MAX_RETRIES || '3' }}" \
-            --from-literal=TIMEOUT_MS="${{ vars.TIMEOUT_MS || '30000' }}" \
-            --from-literal=RATE_LIMIT_MAX="${{ vars.RATE_LIMIT_MAX || '100' }}" \
-            --from-literal=RATE_LIMIT_WINDOW_MS="${{ vars.RATE_LIMIT_WINDOW_MS || '60000' }}" \
             --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
