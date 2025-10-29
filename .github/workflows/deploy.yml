@@ -6,6 +6,16 @@ on:
       - main
       - 'release/**'
       - 'hotfix/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - uat
+          - production
+        default: 'uat'
 
 env:
   BRAND: rubiz
@@ -26,25 +36,36 @@ jobs:
       - name: Determine deployment logic
         id: deployment-logic
         run: |
-          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-
-          case "$BRANCH_NAME" in
-            "main")
-              echo "should-deploy=true" >> $GITHUB_OUTPUT
-              echo "environment=production" >> $GITHUB_OUTPUT
+          # Check if manually triggered
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            if [ "${{ inputs.environment }}" == "production" ]; then
               echo "require-approval=true" >> $GITHUB_OUTPUT
-              ;;
-            release/*|hotfix/*)
-              echo "should-deploy=true" >> $GITHUB_OUTPUT
-              echo "environment=uat" >> $GITHUB_OUTPUT
+            else
               echo "require-approval=false" >> $GITHUB_OUTPUT
-              ;;
-            *)
-              echo "should-deploy=false" >> $GITHUB_OUTPUT
-              echo "environment=none" >> $GITHUB_OUTPUT
-              echo "require-approval=false" >> $GITHUB_OUTPUT
-              ;;
-          esac
+            fi
+          else
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+
+            case "$BRANCH_NAME" in
+              "main")
+                echo "should-deploy=true" >> $GITHUB_OUTPUT
+                echo "environment=production" >> $GITHUB_OUTPUT
+                echo "require-approval=true" >> $GITHUB_OUTPUT
+                ;;
+              release/*|hotfix/*)
+                echo "should-deploy=true" >> $GITHUB_OUTPUT
+                echo "environment=uat" >> $GITHUB_OUTPUT
+                echo "require-approval=false" >> $GITHUB_OUTPUT
+                ;;
+              *)
+                echo "should-deploy=false" >> $GITHUB_OUTPUT
+                echo "environment=none" >> $GITHUB_OUTPUT
+                echo "require-approval=false" >> $GITHUB_OUTPUT
+                ;;
+            esac
+          fi
 
   # Production Deployment Approval Gate
   production-approval:
