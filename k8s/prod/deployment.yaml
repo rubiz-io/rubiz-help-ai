@@ -43,6 +43,8 @@ spec:
               value: "3000"
             - name: HELP_DOMAIN
               value: "guides.rubizvpn.com"
+            - name: BRAND_NAME
+              value: "Rubiz"
             - name: CHROMA_COLLECTION
               value: "rubiz-help"
             - name: REDIS_HOST
