@@ -164,6 +164,18 @@ jobs:
             --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Update image tag in deployment manifests
+        run: |
+          # Update the Docker image tag in deployment files
+          echo "Updating image tag to: ${{ env.DOCKER_IMAGE }}"
+
+          # Replace image tag in deployment
+          sed -i.bak "s|image: gcr.io/flashvpn-253908/flash-help-ai:.*|image: ${{ env.DOCKER_IMAGE }}|g" k8s/${{ needs.determine-deployment.outputs.environment }}/deployment.yaml
+
+          # Show the updated image line
+          echo "Updated deployment file:"
+          grep "image: gcr.io" k8s/${{ needs.determine-deployment.outputs.environment }}/deployment.yaml || echo "Image not found in deployment"
+
       - name: Deploy to Rubiz namespace
         run: |
           # Deploy all resources to the Rubiz namespace
