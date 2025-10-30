@@ -4,18 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'release/**'
-      - 'hotfix/**'
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        type: choice
-        options:
-          - uat
-          - production
-        default: 'uat'
 
 env:
   BRAND: rubiz
@@ -36,35 +25,17 @@ jobs:
       - name: Determine deployment logic
         id: deployment-logic
         run: |
-          # Check if manually triggered
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "should-deploy=true" >> $GITHUB_OUTPUT
-            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
-            if [ "${{ inputs.environment }}" == "production" ]; then
-              echo "require-approval=true" >> $GITHUB_OUTPUT
-            else
-              echo "require-approval=false" >> $GITHUB_OUTPUT
-            fi
-          else
-            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          # Only deploy to production for Rubiz
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
 
-            case "$BRANCH_NAME" in
-              "main")
-                echo "should-deploy=true" >> $GITHUB_OUTPUT
-                echo "environment=production" >> $GITHUB_OUTPUT
-                echo "require-approval=true" >> $GITHUB_OUTPUT
-                ;;
-              release/*|hotfix/*)
-                echo "should-deploy=true" >> $GITHUB_OUTPUT
-                echo "environment=uat" >> $GITHUB_OUTPUT
-                echo "require-approval=false" >> $GITHUB_OUTPUT
-                ;;
-              *)
-                echo "should-deploy=false" >> $GITHUB_OUTPUT
-                echo "environment=none" >> $GITHUB_OUTPUT
-                echo "require-approval=false" >> $GITHUB_OUTPUT
-                ;;
-            esac
+          if [ "$BRANCH_NAME" = "main" ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "require-approval=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-deploy=false" >> $GITHUB_OUTPUT
+            echo "environment=none" >> $GITHUB_OUTPUT
+            echo "require-approval=false" >> $GITHUB_OUTPUT
           fi
 
   # Production Deployment Approval Gate
@@ -95,8 +66,8 @@ jobs:
       needs.determine-deployment.outputs.should-deploy == 'true' &&
       (needs.determine-deployment.outputs.require-approval == 'false' || needs.production-approval.result == 'success')
     environment:
-      name: ${{ needs.determine-deployment.outputs.environment }}
-      url: https://${{ needs.determine-deployment.outputs.environment == 'production' && 'home' || 'uat-home' }}.rubizvpn.com/help-ai/health
+      name: production
+      url: https://home.rubizvpn.com/help-ai/health
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -117,14 +88,10 @@ jobs:
           echo "Available DigitalOcean clusters:"
           doctl kubernetes cluster list || echo "Could not list clusters"
 
-          # Get the cluster ID/name based on environment
-          if [[ "${{ needs.determine-deployment.outputs.environment }}" == "production" ]]; then
-            CLUSTER_NAME="${{ secrets.DO_CLUSTER_NAME_PROD || 'prod-jss' }}"
-          else
-            CLUSTER_NAME="${{ secrets.DO_CLUSTER_NAME_UAT || 'uat-jss' }}"
-          fi
+          # Only deploy to production cluster for Rubiz
+          CLUSTER_NAME="${{ secrets.DO_CLUSTER_NAME_PROD || 'prod-jss' }}"
 
-          echo "Configuring kubectl for cluster: $CLUSTER_NAME"
+          echo "Configuring kubectl for production cluster: $CLUSTER_NAME"
 
           # Generate kubeconfig using doctl
           doctl kubernetes cluster kubeconfig save "$CLUSTER_NAME" --expiry-seconds 600
@@ -169,18 +136,18 @@ jobs:
           # Update the Docker image tag in deployment files
           echo "Updating image tag to: ${{ env.DOCKER_IMAGE }}"
 
-          # Replace image tag in deployment
-          sed -i.bak "s|image: gcr.io/flashvpn-253908/flash-help-ai:.*|image: ${{ env.DOCKER_IMAGE }}|g" k8s/${{ needs.determine-deployment.outputs.environment }}/deployment.yaml
+          # Replace image tag in production deployment
+          sed -i.bak "s|image: gcr.io/flashvpn-253908/flash-help-ai:.*|image: ${{ env.DOCKER_IMAGE }}|g" k8s/prod/deployment.yaml
 
           # Show the updated image line
           echo "Updated deployment file:"
-          grep "image: gcr.io" k8s/${{ needs.determine-deployment.outputs.environment }}/deployment.yaml || echo "Image not found in deployment"
+          grep "image: gcr.io" k8s/prod/deployment.yaml || echo "Image not found in deployment"
 
       - name: Deploy to Rubiz namespace
         run: |
-          # Deploy all resources to the Rubiz namespace
-          echo "Deploying to ${{ needs.determine-deployment.outputs.environment }} environment..."
-          kubectl apply -f k8s/${{ needs.determine-deployment.outputs.environment }}/ --namespace=${{ env.NAMESPACE }}
+          # Deploy all resources to the Rubiz namespace (production only)
+          echo "Deploying to production environment..."
+          kubectl apply -f k8s/prod/ --namespace=${{ env.NAMESPACE }}
 
           # Verify IngressRoute was created
           echo ""
