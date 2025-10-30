@@ -126,7 +126,7 @@ jobs:
             --from-literal=NOTION_WEBHOOK_SECRET="${{ secrets.NOTION_WEBHOOK_SECRET || '' }}" \
             --from-literal=CHATWOOT_ACCOUNT_ID="${{ secrets.CHATWOOT_ACCOUNT_ID || '' }}" \
             --from-literal=CHATWOOT_INBOX_ID="${{ secrets.CHATWOOT_INBOX_ID || '' }}" \
-            --from-literal=CHATWOOT_API_BASE_URL="${{ secrets.CHATWOOT_API_BASE_URL || '' }}" \
+            --from-literal=CHATWOOT_API_BASE_URL="${{ secrets.CHATWOOT_API_BASE_URL || 'https://app.chatwoot.com' }}" \
             --from-literal=CHATWOOT_WEBHOOK_SECRET="${{ secrets.CHATWOOT_WEBHOOK_SECRET || '' }}" \
             --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
