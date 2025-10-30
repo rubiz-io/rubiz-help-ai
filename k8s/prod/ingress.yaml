@@ -27,7 +27,7 @@ spec:
       match: Host(`home.rubiz.io`,`api-home.rubiz.io`, `web-home.rubiz.io`) && PathPrefix(`/help-ai`)
       priority: 300
       middlewares:
-        - name: default-rubiz-redirect-https@kubernetescrd
+        - name: default-redirect-https@kubernetescrd
         - name: rubiz-help-ai-stripprefix
       services:
         - name: rubiz-help-ai
