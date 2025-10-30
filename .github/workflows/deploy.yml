@@ -21,7 +21,7 @@ env:
   BRAND: rubiz
   NAMESPACE: rubiz
   # Uses flash-help-ai Docker image - no brand-specific build needed
-  DOCKER_IMAGE: gcr.io/flashvpn-253908/flash-help-ai:latest
+  DOCKER_IMAGE: gcr.io/flashvpn-253908/flash-help-ai:a369c5a9
 
 jobs:
   # Determine deployment environment
