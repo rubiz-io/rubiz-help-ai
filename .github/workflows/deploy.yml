@@ -119,15 +119,15 @@ jobs:
           # Create secrets for sensitive data only
           # Non-sensitive config is embedded directly in deployment.yaml
           kubectl create secret generic ${{ env.BRAND }}-help-ai-secrets \
-            --from-literal=NOTION_TOKEN="${{ secrets.RUBIZ_NOTION_TOKEN }}" \
+            --from-literal=NOTION_TOKEN="${{ secrets.NOTION_TOKEN }}" \
             --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
-            --from-literal=NOTION_DATABASE_ID="${{ secrets.RUBIZ_NOTION_DATABASE_ID }}" \
-            --from-literal=CHATWOOT_API_ACCESS_TOKEN="${{ secrets.RUBIZ_CHATWOOT_API_ACCESS_TOKEN || '' }}" \
-            --from-literal=NOTION_WEBHOOK_SECRET="${{ secrets.RUBIZ_NOTION_WEBHOOK_SECRET || '' }}" \
-            --from-literal=CHATWOOT_ACCOUNT_ID="${{ secrets.RUBIZ_CHATWOOT_ACCOUNT_ID || '' }}" \
-            --from-literal=CHATWOOT_INBOX_ID="${{ secrets.RUBIZ_CHATWOOT_INBOX_ID || '' }}" \
-            --from-literal=CHATWOOT_API_BASE_URL="${{ secrets.RUBIZ_CHATWOOT_API_BASE_URL || '' }}" \
-            --from-literal=CHATWOOT_WEBHOOK_SECRET="${{ secrets.RUBIZ_CHATWOOT_WEBHOOK_SECRET || '' }}" \
+            --from-literal=NOTION_DATABASE_ID="${{ secrets.NOTION_DATABASE_ID }}" \
+            --from-literal=CHATWOOT_API_ACCESS_TOKEN="${{ secrets.CHATWOOT_API_ACCESS_TOKEN || '' }}" \
+            --from-literal=NOTION_WEBHOOK_SECRET="${{ secrets.NOTION_WEBHOOK_SECRET || '' }}" \
+            --from-literal=CHATWOOT_ACCOUNT_ID="${{ secrets.CHATWOOT_ACCOUNT_ID || '' }}" \
+            --from-literal=CHATWOOT_INBOX_ID="${{ secrets.CHATWOOT_INBOX_ID || '' }}" \
+            --from-literal=CHATWOOT_API_BASE_URL="${{ secrets.CHATWOOT_API_BASE_URL || '' }}" \
+            --from-literal=CHATWOOT_WEBHOOK_SECRET="${{ secrets.CHATWOOT_WEBHOOK_SECRET || '' }}" \
             --namespace=${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
