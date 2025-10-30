@@ -31,7 +31,7 @@ spec:
       containers:
         - name: rubiz-help-ai
           # Uses flash-help-ai Docker image - no brand-specific build needed
-          image: gcr.io/flashvpn-253908/flash-help-ai:latest
+          image: gcr.io/flashvpn-253908/flash-help-ai:a369c5a9
           ports:
             - containerPort: 3000
               name: http
