@@ -65,6 +65,8 @@ spec:
               value: "100"
             - name: RATE_LIMIT_WINDOW_MS
               value: "60000"
+            - name: CHATWOOT_ENABLE_HUMAN_HANDOFF
+              value: "true"
           envFrom:
             - secretRef:
                 name: rubiz-help-ai-secrets
