@@ -49,7 +49,7 @@ git checkout -b release/v1.0.0
 # Push to trigger UAT deployment
 git push origin release/v1.0.0
 
-# Automatically deploys to uat-home.rubizvpn.com
+# Automatically deploys to uat-home.rubiz.io
 ```
 
 **2. Deploy to Production**
@@ -61,7 +61,7 @@ git merge release/v1.0.0
 # Push to trigger production deployment (requires manual approval)
 git push origin main
 
-# After approval, deploys to home.rubizvpn.com
+# After approval, deploys to home.rubiz.io
 ```
 
 **3. Hotfix Deployment**
@@ -84,7 +84,7 @@ git push origin main
 
 | Secret | Description | Required |
 |--------|-------------|----------|
-| `RUBIZ_HELP_DOMAIN` | Help domain (e.g., guides.rubizvpn.com) | ✅ Yes |
+| `RUBIZ_HELP_DOMAIN` | Help domain (e.g., guides.rubiz.io) | ✅ Yes |
 | `RUBIZ_NOTION_TOKEN` | Notion API token | ✅ Yes |
 | `RUBIZ_NOTION_DATABASE_ID` | Notion database ID | ✅ Yes |
 | `RUBIZ_CHATWOOT_ACCOUNT_ID` | Chatwoot account ID | Optional |
@@ -121,7 +121,7 @@ The application is configured via Kubernetes secrets created during deployment:
 | Variable | Value | Description |
 |----------|-------|-------------|
 | `CHROMA_COLLECTION` | `rubiz-help` | Rubiz ChromaDB collection |
-| `HELP_DOMAIN` | `guides.rubizvpn.com` | Rubiz help domain |
+| `HELP_DOMAIN` | `guides.rubiz.io` | Rubiz help domain |
 | `REDIS_HOST` | `redis.default.svc.cluster.local` | Shared Redis |
 | `CHROMA_HOST` | `chromadb.default.svc.cluster.local` | Shared ChromaDB |
 
@@ -221,12 +221,12 @@ All brands share these services in the `default` namespace:
 ## Endpoints
 
 **UAT:**
-- Health: `https://uat-home.rubizvpn.com/help-ai/health`
-- API: `https://uat-home.rubizvpn.com/help-ai/*`
+- Health: `https://uat-home.rubiz.io/help-ai/health`
+- API: `https://uat-home.rubiz.io/help-ai/*`
 
 **Production:**
-- Health: `https://home.rubizvpn.com/help-ai/health`
-- API: `https://home.rubizvpn.com/help-ai/*`
+- Health: `https://home.rubiz.io/help-ai/health`
+- API: `https://home.rubiz.io/help-ai/*`
 
 ## Support
 

@@ -67,7 +67,7 @@ jobs:
       (needs.determine-deployment.outputs.require-approval == 'false' || needs.production-approval.result == 'success')
     environment:
       name: production
-      url: https://home.rubizvpn.com/help-ai/health
+      url: https://home.rubiz.io/help-ai/health
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -192,9 +192,9 @@ jobs:
           echo ""
           echo "Testing public endpoint via IngressRoute..."
           if [[ "${{ needs.determine-deployment.outputs.environment }}" == "production" ]]; then
-            PUBLIC_URL="https://home.rubizvpn.com/help-ai/health"
+            PUBLIC_URL="https://home.rubiz.io/help-ai/health"
           else
-            PUBLIC_URL="https://uat-home.rubizvpn.com/help-ai/health"
+            PUBLIC_URL="https://uat-home.rubiz.io/help-ai/health"
           fi
 
           echo "Testing: $PUBLIC_URL"

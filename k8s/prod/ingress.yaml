@@ -24,7 +24,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: Host(`home.rubizvpn.com`,`api-home.rubizvpn.com`, `web-home.rubizvpn.com`) && PathPrefix(`/help-ai`)
+      match: Host(`home.rubiz.io`,`api-home.rubiz.io`, `web-home.rubiz.io`) && PathPrefix(`/help-ai`)
       priority: 300
       middlewares:
         - name: default-rubiz-redirect-https@kubernetescrd

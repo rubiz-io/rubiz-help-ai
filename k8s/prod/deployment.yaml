@@ -42,7 +42,7 @@ spec:
             - name: PORT
               value: "3000"
             - name: HELP_DOMAIN
-              value: "guides.rubizvpn.com"
+              value: "guides.rubiz.io"
             - name: BRAND_NAME
               value: "Rubiz"
             - name: CHROMA_COLLECTION
