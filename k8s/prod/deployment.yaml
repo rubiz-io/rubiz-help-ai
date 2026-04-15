@@ -48,7 +48,7 @@ spec:
             - name: CHROMA_COLLECTION
               value: "rubiz-help"
             - name: REDIS_HOST
-              value: "redis.default.svc.cluster.local"
+              value: "redis.rubiz.svc.cluster.local"
             - name: REDIS_PORT
               value: "6379"
             - name: CHROMA_HOST
